@@ -31,9 +31,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=2.5">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=1.1">
     
-    <!-- Favicon SVG -->
+    <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230d9488'><path d='M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z'/></svg>">
 
     <!-- Yandex.Metrica counter -->
@@ -53,6 +53,7 @@
     </script>
     <noscript><div><img src="https://mc.yandex.ru/watch/113395716" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <!-- /Yandex.Metrica counter -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', path='favicon.ico') }}">
   </head>
 <body class="theme-light">
     <!-- Header -->
@@ -115,23 +116,6 @@
         </div>
     </footer>
 
-    <!-- Theme Inline Script (سریع و بدون وابستگی) -->
-    <script>
-        (function() {
-            const savedTheme = localStorage.getItem('theme') || 'theme-light';
-            document.body.className = savedTheme;
-            const toggleBtn = document.getElementById('theme-toggle');
-            if (toggleBtn) {
-                toggleBtn.addEventListener('click', function() {
-                    const newTheme = document.body.classList.contains('theme-dark') ? 'theme-light' : 'theme-dark';
-                    document.body.className = newTheme;
-                    localStorage.setItem('theme', newTheme);
-                });
-            }
-        })();
-    </script>
-
-    <!-- Main App Script -->
-    <script src="/static/js/app.js?v=2.5"></script>
+    <script src="{{ url_for('static', path='js/app.js') }}?v=1.1"></script>
 </body>
 </html>
