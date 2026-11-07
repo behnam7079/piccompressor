@@ -1,0 +1,9 @@
+services:
+  piccompressor:
+    build: .
+    container_name: piccompressor
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      SITE_URL: ${SITE_URL:-https://piccompressor.ir}

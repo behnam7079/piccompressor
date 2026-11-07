@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- اسکیماهای ساختاریافته اختصاصی صفحه اول برای گوگل -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "@id": "https://piccompressor.ir/#webapp",
+      "name": "پیک کمپرسور | کاهش حجم عکس آنلاین، تبدیل به PDF و واترمارک",
+      "url": "https://piccompressor.ir",
+      "applicationCategory": "MultimediaApplication",
+      "operatingSystem": "All",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "IRR"
+      },
+      "featureList": [
+        "کاهش حجم عکس آنلاین بدون افت کیفیت",
+        "تبدیل عکس JPG و PNG به PDF",
+        "افزودن واترمارک متنی و لوگو روی تصاویر",
+        "تبدیل تصویر به فرمت WebP",
+        "فشرده سازی گروهی تصاویر و دانلود ZIP"
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://piccompressor.ir/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "چگونه حجم عکس را برای ثبت‌نام‌های اینترنتی (سنجش و استخدامی) کاهش دهیم؟",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "کافی است عکس پرسنلی یا مدرک خود را در پیک کمپرسور آپلود کرده، اسلایدر کیفیت را تنظیم و در صورت نیاز حداکثر عرض را مثلاً روی 600 پیکسل قرار دهید تا حجم عکس بدون افت وضوح به زیر ۱۰۰ یا ۲۰۰ کیلوبایت برسد."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "چگونه روی عکس‌های خود واترمارک و لوگو قرار دهیم؟",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "کافیست تب «افزودن واترمارک» را انتخاب کرده، تصویر خود را آپلود کنید و متن دلخواه یا فایل لوگو را به همراه موقعیت و میزان شفافیت تنظیم کنید."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "چگونه چند عکس را به یک فایل PDF تبدیل کنم؟",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "کافیست تب «تبدیل عکس به PDF» را انتخاب کرده، تصاویر مورد نظر را آپلود کنید تا بلافاصله یک فایل PDF مرتب تحویل بگیرید."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+
+<section class="hero-section">
+    <div class="container hero-container">
+        <div class="hero-badge">⚡ سریع‌ترین ابزار آنلاین فشرده‌سازی عکس، واترمارک و اسناد</div>
+        <h1 class="hero-title">کاهش حجم عکس آنلاین، افزودن واترمارک و تبدیل عکس به PDF</h1>
+        <p class="hero-subtitle">عکس‌های <strong>JPG، PNG و WebP</strong> خود را تا <strong>۹۰ درصد</strong> فشرده کنید، روی آن‌ها واترمارک متنی یا لوگو بزنید و یا تصاویر را به یک فایل <strong>PDF</strong> یکپارچه تبدیل نمایید.</p>
+    </div>
+</section>
+
+<!-- Tools Navigation Tabs -->
+<div class="container" style="margin-bottom: -15px;">
+    <div class="tool-tabs" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+        <button id="tab-btn-compress" class="btn-tab active" onclick="switchToolTab('compress')" style="padding: 10px 18px; border-radius: 12px; font-weight: 700; cursor: pointer; border: 2px solid #0d9488; background: #0d9488; color: #fff; transition: 0.2s;">
+            🗜️ فشرده‌سازی عکس
+        </button>
+        <button id="tab-btn-watermark" class="btn-tab" onclick="switchToolTab('watermark')" style="padding: 10px 18px; border-radius: 12px; font-weight: 700; cursor: pointer; border: 2px solid #0d9488; background: transparent; color: #0d9488; transition: 0.2s;">
+            💧 افزودن واترمارک
+        </button>
+        <button id="tab-btn-pdf" class="btn-tab" onclick="switchToolTab('pdf')" style="padding: 10px 18px; border-radius: 12px; font-weight: 700; cursor: pointer; border: 2px solid #0d9488; background: transparent; color: #0d9488; transition: 0.2s;">
+            📄 تبدیل عکس به PDF
+        </button>
+    </div>
+</div>
+
+<!-- 1. Compressor Box -->
+<section id="compressor" class="compressor-section">
+    <div class="container">
+        <div class="compressor-card">
+            <!-- Settings Bar -->
+            <div class="settings-panel">
+                <div class="setting-item">
+                    <label for="quality-slider">
+                        <span>میزان کیفیت:</span>
+                        <strong id="quality-val" class="text-teal">80%</strong>
+                    </label>
+                    <input type="range" id="quality-slider" min="10" max="100" value="80" class="custom-range" title="اسلایدر تنظیم درصد کیفیت عکس">
+                </div>
+
+                <div class="setting-item">
+                    <label for="format-select">فرمت خروجی:</label>
+                    <select id="format-select" class="custom-select" title="انتخاب فرمت ذخیره‌سازی">
+                        <option value="AUTO">خودکار (بهترین تناسب)</option>
+                        <option value="JPG" selected>JPG (فرمت استاندارد و سبک)</option>
+                        <option value="WEBP">WebP (مدرن و فوق‌العاده سبک)</option>
+                        <option value="PNG">PNG (حفظ شفافیت و بدون پس‌زمینه)</option>
+                    </select>
+                </div>
+
+                <div class="setting-item">
+                    <label for="max-width">حداکثر عرض (پیکسل):</label>
+                    <input type="number" id="max-width" placeholder="مثلاً 1920 یا 800" class="custom-input" title="تغییر ابعاد و عرض تصویر">
+                </div>
+
+                <div class="setting-item-check">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="strip-exif" checked>
+                        <span>حذف داده‌های اضافه (EXIF) برای کم کردن بیشتر حجم</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Upload Area -->
+            <div class="drop-zone" id="drop-zone">
+                <input type="file" id="file-input" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif" class="file-input">
+                <div class="drop-zone-content">
+                    <div class="upload-icon-wrapper">
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                    </div>
+                    <h2>تصاویر را به اینجا بکشید یا برای انتخاب کلیک کنید</h2>
+                    <p class="drop-hint">پشتیبانی از JPG, PNG, WebP, HEIC • انتخاب دسته‌جمعی تا سقف ۳۰ مگابایت</p>
+                    <button type="button" class="btn-primary" onclick="document.getElementById('file-input').click()">
+                        انتخاب عکس‌ها برای کاهش حجم
+                    </button>
+                </div>
+                <div class="loading-overlay" id="loading-overlay">
+                    <div class="spinner"></div>
+                    <p id="loading-text">در حال بهینه‌سازی و فشرده‌سازی هوشمند تصاویر...</p>
+                </div>
+            </div>
+
+            <!-- Global Action Bar -->
+            <div class="batch-action-bar" id="batch-action-bar" style="display: none;">
+                <div class="batch-summary">
+                    <span id="batch-count">۰ تصویر پردازش شد</span>
+                    <span class="divider">|</span>
+                    <span id="batch-saved-total" class="text-teal font-bold">صرفه‌جویی کل: ۰ کیلوبایت</span>
+                </div>
+                <div class="batch-buttons">
+                    <button class="btn-success" id="download-all-btn">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        دانلود همه به صورت فایل ZIP
+                    </button>
+                    <button class="btn-outline" id="clear-all-btn">پاکسازی لیست</button>
+                </div>
+            </div>
+
+            <!-- Results List -->
+            <div class="results-container" id="results-container"></div>
+        </div>
+    </div>
+</section>
+
+<!-- 2. Watermark Box -->
+<section id="watermark-section" class="compressor-section" style="display: none;">
+    <div class="container">
+        <div class="compressor-card">
+            <div class="settings-panel" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div class="setting-item">
+                    <label for="wm-text">متن واترمارک:</label>
+                    <input type="text" id="wm-text" placeholder="مثلاً: PicCompressor.ir" class="custom-input">
+                </div>
+                <div class="setting-item">
+                    <label for="wm-logo">فایل لوگو (PNG شفاف):</label>
+                    <input type="file" id="wm-logo" accept=".png" class="custom-input" style="padding: 6px;">
+                </div>
+                <div class="setting-item">
+                    <label for="wm-position">موقعیت قرارگیری:</label>
+                    <select id="wm-position" class="custom-select">
+                        <option value="bottom-right">پایین راست</option>
+                        <option value="bottom-left">پایین چپ</option>
+                        <option value="top-right">بالای راست</option>
+                        <option value="top-left">بالای چپ</option>
+                        <option value="center">مرکز تصویر</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label for="wm-opacity">میزان شفافیت (%): <span id="opacity-val" class="text-teal">50</span></label>
+                    <input type="range" id="wm-opacity" min="10" max="100" value="50" class="custom-range" oninput="document.getElementById('opacity-val').innerText = this.value">
+                </div>
+            </div>
+
+            <div class="drop-zone" id="wm-drop-zone">
+                <input type="file" id="wm-file-input" accept=".jpg,.jpeg,.png,.webp" class="file-input" onchange="handleWatermarkFileSelected(this.files)">
+                <div class="drop-zone-content">
+                    <div class="upload-icon-wrapper" style="color: #0d9488;">
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                    </div>
+                    <h2>تصویر خود را برای افزودن واترمارک انتخاب کنید</h2>
+                    <p class="drop-hint">افزودن سریع متن یا لوگو به صورت نیمه‌شفاف روی عکس</p>
+                    <button type="button" class="btn-primary" onclick="document.getElementById('wm-file-input').click()" style="background-color: #0d9488;">
+                        انتخاب تصویر برای واترمارک
+                    </button>
+                </div>
+                <div class="loading-overlay" id="wm-loading-overlay" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>در حال اعمال واترمارک روی تصویر...</p>
+                </div>
+            </div>
+
+            <div id="wm-selected-status" style="margin-top: 15px; text-align: center; display: none;">
+                <p id="wm-status-text" style="font-weight: bold; margin-bottom: 12px;"></p>
+                <button type="button" class="btn-success" id="start-wm-btn" onclick="uploadAndApplyWatermark()" style="padding: 10px 24px;">
+                    اعمال واترمارک و دانلود تصویر
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 3. Image to PDF Box -->
+<section id="pdf-section" class="compressor-section" style="display: none;">
+    <div class="container">
+        <div class="compressor-card">
+            <div class="drop-zone" id="pdf-drop-zone">
+                <input type="file" id="pdf-file-input" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif" class="file-input" onchange="handlePdfFilesSelected(this.files)">
+                <div class="drop-zone-content">
+                    <div class="upload-icon-wrapper" style="color: #ef4444;">
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                    </div>
+                    <h2>تصاویر مورد نظر برای تبدیل به PDF را انتخاب کنید</h2>
+                    <p class="drop-hint">تبدیل سریع عکس‌های شناسنامه، کارت ملی، جزوه و اسناد به یک فایل PDF کم‌حجم</p>
+                    <button type="button" class="btn-primary" onclick="document.getElementById('pdf-file-input').click()" style="background-color: #0d9488;">
+                        انتخاب عکس‌ها برای ساخت PDF
+                    </button>
+                </div>
+                <div class="loading-overlay" id="pdf-loading-overlay" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>در حال تبدیل و یکپارچه‌سازی صفحات PDF...</p>
+                </div>
+            </div>
+
+            <div id="pdf-selected-status" style="margin-top: 15px; text-align: center; display: none;">
+                <p id="pdf-status-text" style="font-weight: bold; margin-bottom: 12px;"></p>
+                <button type="button" class="btn-success" id="start-pdf-btn" onclick="uploadAndConvertPdf()" style="padding: 10px 24px;">
+                    تبدیل فوری و دانلود فایل PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Comparison & Preview Modal -->
+<div class="modal-overlay" id="preview-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">پیش‌نمایش و مقایسه کیفیت تصویر</h3>
+            <button class="modal-close" id="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="comparison-wrapper">
+                <div class="comparison-image-box">
+                    <span class="badge badge-orig">تصویر اولیه (قبل از فشرده‌سازی)</span>
+                    <img id="modal-orig-img" src="" alt="عکس اصلی قبل از فشرده سازی">
+                    <div class="img-specs" id="modal-orig-specs"></div>
+                </div>
+                <div class="comparison-image-box">
+                    <span class="badge badge-comp">تصویر نهایی (بعد از بهینه‌سازی)</span>
+                    <img id="modal-comp-img" src="" alt="عکس کم حجم شده نهایی">
+                    <div class="img-specs" id="modal-comp-specs"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SEO Features Section -->
+<section id="features" class="features-section">
+    <div class="container">
+        <div class="section-header">
+            <h2>چرا پیک کمپرسور بهترین انتخاب برای کم کردن حجم عکس است؟</h2>
+            <p>تلفیقی از الگوریتم‌های مدرن کوانتیزاسیون تصویر و سرعت بالای سرور برای بیشترین میزان صرفه‌جویی در حجم</p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🚀</div>
+                <h3>کاهش حجم عکس بدون افت کیفیت</h3>
+                <p>با الگوریتم‌های فشرده‌سازی تطبیقی، نویزها و اطلاعات رنگی زاید پنهان از چشم انسان حذف می‌شوند بدون اینکه وضوح عکس کم شود.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">💧</div>
+                <h3>افزودن واترمارک حرفه‌ای</h3>
+                <p>روی عکس‌های خود متن یا لوگوی دلخواه را با تنظیمات موقعیت و شفافیت دلخواه درج کنید تا از کپی‌رایت اثرتان محافظت شود.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">📄</div>
+                <h3>تبدیل عکس به PDF آنلاین</h3>
+                <p>عکس‌های مدارک، جزوه، صفحات کتاب و فاکتورها را به راحتی پشت سر هم بچینید و با یک کلیک یک فایل PDF تمیز و باکیفیت دریافت کنید.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3>حفظ کامل حریم خصوصی و امنیت</h3>
+                <p>تمام پردازش‌ها در حافظه موقت (RAM) انجام می‌پذیرد و هیچ فایلی روی دیسک سرور یا دیتابیس ماندگار نمی‌شود.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Script to handle switching tabs and features -->
+<script>
+let selectedPdfFiles = [];
+let selectedWmFile = null;
+
+function switchToolTab(tab) {
+    const compressSec = document.getElementById('compressor');
+    const watermarkSec = document.getElementById('watermark-section');
+    const pdfSec = document.getElementById('pdf-section');
+    
+    const btnCompress = document.getElementById('tab-btn-compress');
+    const btnWatermark = document.getElementById('tab-btn-watermark');
+    const btnPdf = document.getElementById('tab-btn-pdf');
+
+    [compressSec, watermarkSec, pdfSec].forEach(s => s.style.display = 'none');
+    [btnCompress, btnWatermark, btnPdf].forEach(b => {
+        b.style.background = 'transparent';
+        b.style.color = '#0d9488';
+    });
+
+    if (tab === 'compress') {
+        compressSec.style.display = 'block';
+        btnCompress.style.background = '#0d9488';
+        btnCompress.style.color = '#fff';
+    } else if (tab === 'watermark') {
+        watermarkSec.style.display = 'block';
+        btnWatermark.style.background = '#0d9488';
+        btnWatermark.style.color = '#fff';
+    } else if (tab === 'pdf') {
+        pdfSec.style.display = 'block';
+        btnPdf.style.background = '#0d9488';
+        btnPdf.style.color = '#fff';
+    }
+}
+
+function handleWatermarkFileSelected(files) {
+    if (!files || files.length === 0) return;
+    selectedWmFile = files[0];
+    const statusBox = document.getElementById('wm-selected-status');
+    const statusText = document.getElementById('wm-status-text');
+    statusBox.style.display = 'block';
+    statusText.innerText = `تصویر «${selectedWmFile.name}» برای افزودن واترمارک آماده است.`;
+}
+
+async function uploadAndApplyWatermark() {
+    if (!selectedWmFile) return;
+
+    const overlay = document.getElementById('wm-loading-overlay');
+    overlay.style.display = 'flex';
+
+    const formData = new FormData();
+    formData.append('file', selectedWmFile);
+    formData.append('text', document.getElementById('wm-text').value);
+    formData.append('position', document.getElementById('wm-position').value);
+    formData.append('opacity', document.getElementById('wm-opacity').value);
+
+    const logoInput = document.getElementById('wm-logo');
+    if (logoInput.files && logoInput.files[0]) {
+        formData.append('logo', logoInput.files[0]);
+    }
+
+    try {
+        const response = await fetch('/api/watermark', {
+            method: 'POST',
+            body: formData
+        });
+
+        const resData = await response.json();
+        if (!response.ok || !resData.success) {
+            alert(resData.error || 'خطایی در اعمال واترمارک رخ داد.');
+            overlay.style.display = 'none';
+            return;
+        }
+
+        const a = document.createElement('a');
+        a.href = resData.preview_url;
+        a.download = resData.filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        document.getElementById('wm-status-text').innerText = 'واترمارک با موفقیت اعمال و دانلود شد!';
+    } catch (e) {
+        alert('خطای ارتباط با سرور.');
+    } finally {
+        overlay.style.display = 'none';
+    }
+}
+
+function handlePdfFilesSelected(files) {
+    if (!files || files.length === 0) return;
+    selectedPdfFiles = Array.from(files);
+    const statusBox = document.getElementById('pdf-selected-status');
+    const statusText = document.getElementById('pdf-status-text');
+    statusBox.style.display = 'block';
+    statusText.innerText = `${selectedPdfFiles.length} تصویر برای تبدیل به PDF انتخاب شد.`;
+}
+
+async function uploadAndConvertPdf() {
+    if (!selectedPdfFiles || selectedPdfFiles.length === 0) return;
+
+    const overlay = document.getElementById('pdf-loading-overlay');
+    overlay.style.display = 'flex';
+
+    const formData = new FormData();
+    selectedPdfFiles.forEach(file => {
+        formData.append('files', file);
+    });
+
+    try {
+        const response = await fetch('/api/images-to-pdf', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            alert(err.detail || 'خطایی در تبدیل رخ داد.');
+            overlay.style.display = 'none';
+            return;
+        }
+
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = 'converted.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+
+        document.getElementById('pdf-status-text').innerText = 'فایل PDF با موفقیت دانلود شد!';
+    } catch (e) {
+        alert('خطای ارتباط با سرور.');
+    } finally {
+        overlay.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}
