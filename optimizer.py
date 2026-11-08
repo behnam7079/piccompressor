@@ -1,7 +1,7 @@
 import io
 import os
 import zipfile
-from typing import Tuple, Dict, Any, Optional
+from typing import Tuple, Dict, Any, Optional, List
 from PIL import Image, ImageOps, ImageDraw, ImageFont
 
 SUPPORTED_FORMATS = {"JPEG", "JPG", "PNG", "WEBP"}
@@ -87,13 +87,13 @@ def smart_compress(
             img = img.resize((w, max_height), Image.Resampling.LANCZOS)
             h = max_height
 
-        # Mode conversions
+        # Mode conversions (preventing black background on transparency)
         if save_format == "JPEG":
             if img.mode in ("RGBA", "LA", "P"):
                 background = Image.new("RGB", img.size, (255, 255, 255))
-                if img.mode == "P":
+                if img.mode != "RGBA":
                     img = img.convert("RGBA")
-                background.paste(img, mask=img.split()[3] if len(img.split()) == 4 else None)
+                background.paste(img, mask=img.split()[3])
                 img = background
             elif img.mode != "RGB":
                 img = img.convert("RGB")
@@ -158,31 +158,60 @@ def create_zip_archive(files_data: list) -> bytes:
             zip_file.writestr(item["name"], item["data"])
     zip_buffer.seek(0)
     return zip_buffer.getvalue()
-def convert_images_to_pdf(image_files: list) -> bytes:
+
+def convert_images_to_pdf(image_files: List[bytes]) -> bytes:
     pil_images = []
-    for f in image_files:
-        img = Image.open(io.BytesIO(f))
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-        pil_images.append(img)
-    
-    if not pil_images:
-        return b""
+    try:
+        for f in image_files:
+            img = Image.open(io.BytesIO(f))
+            try:
+                img = ImageOps.exif_transpose(img)
+            except Exception:
+                pass
+            
+            # جلوگیری از پس‌زمینه سیاه برای تصاویر شفاف در PDF
+            if img.mode in ("RGBA", "LA", "P"):
+                bg = Image.new("RGB", img.size, (255, 255, 255))
+                if img.mode != "RGBA":
+                    img = img.convert("RGBA")
+                bg.paste(img, mask=img.split()[3])
+                pil_images.append(bg)
+            elif img.mode != "RGB":
+                pil_images.append(img.convert("RGB"))
+            else:
+                pil_images.append(img.copy())
+            img.close()
         
-    pdf_buffer = io.BytesIO()
-    pil_images[0].save(
-        pdf_buffer, 
-        format="PDF", 
-        save_all=True, 
-        append_images=pil_images[1:]
-    )
-    pdf_buffer.seek(0)
-    return pdf_buffer.getvalue()
+        if not pil_images:
+            return b""
+            
+        pdf_buffer = io.BytesIO()
+        pil_images[0].save(
+            pdf_buffer, 
+            format="PDF", 
+            save_all=True, 
+            append_images=pil_images[1:]
+        )
+        pdf_buffer.seek(0)
+        return pdf_buffer.getvalue()
+    finally:
+        for im in pil_images:
+            try:
+                im.close()
+            except Exception:
+                pass
+
 def apply_watermark(image_bytes: bytes, text: str = "", logo_bytes: bytes = None, position: str = "bottom-right", opacity: int = 50) -> bytes:
     import bidi.algorithm
     import arabic_reshaper
 
-    img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+    with Image.open(io.BytesIO(image_bytes)) as base_img:
+        try:
+            base_img = ImageOps.exif_transpose(base_img)
+        except Exception:
+            pass
+        img = base_img.convert("RGBA")
+
     txt_layer = Image.new("RGBA", img.size, (255, 255, 255, 0))
     alpha = int((opacity / 100) * 255)
 
@@ -190,20 +219,31 @@ def apply_watermark(image_bytes: bytes, text: str = "", logo_bytes: bytes = None
         draw = ImageDraw.Draw(txt_layer)
         font_size = max(24, int(img.width * 0.04))
         
-        # تلاش برای بارگذاری فونت فارسی (مثل Tahoma یا فونت سیستم)
+        # لیست فونت‌های لینوکس سرور + ویندوز لوکال + مسیر استاتیک پروژه
         font = None
-        for font_name in ["tahoma.ttf", "arial.ttf", "seguiemj.ttf"]:
+        candidate_fonts = [
+            os.path.join("static", "fonts", "Vazirmatn-Bold.ttf"),
+            os.path.join("static", "fonts", "Vazirmatn-Regular.ttf"),
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "tahoma.ttf",
+            "arial.ttf"
+        ]
+        for f_path in candidate_fonts:
             try:
-                font = ImageFont.truetype(font_name, font_size)
+                font = ImageFont.truetype(f_path, font_size)
                 break
             except Exception:
                 continue
         if not font:
             font = ImageFont.load_default()
 
-        # اصلاح حروف فارسی و قالب‌بندی راست‌به‌چپ
-        reshaped_text = arabic_reshaper.reshape(text)
-        bidi_text = bidi.algorithm.get_display(reshaped_text)
+        # فرمت‌بندی متن فارسی
+        try:
+            reshaped_text = arabic_reshaper.reshape(text)
+            bidi_text = bidi.algorithm.get_display(reshaped_text)
+        except Exception:
+            bidi_text = text
 
         bbox = draw.textbbox((0, 0), bidi_text, font=font)
         text_w = bbox[2] - bbox[0]
@@ -221,14 +261,14 @@ def apply_watermark(image_bytes: bytes, text: str = "", logo_bytes: bytes = None
         else:
             pos = (img.width - text_w - pad, img.height - text_h - pad)
 
-        # رسم سایه مشکی برای خوانایی بهتر روی هر پس‌زمینه‌ای + متن اصلی سفید یا رنگی
         shadow_offset = max(1, int(font_size * 0.08))
         draw.text((pos[0] + shadow_offset, pos[1] + shadow_offset), bidi_text, fill=(0, 0, 0, int(alpha * 0.8)), font=font)
         draw.text(pos, bidi_text, fill=(255, 255, 255, alpha), font=font)
 
     if logo_bytes:
         try:
-            watermark_img = Image.open(io.BytesIO(logo_bytes)).convert("RGBA")
+            with Image.open(io.BytesIO(logo_bytes)) as raw_logo:
+                watermark_img = raw_logo.convert("RGBA")
             base_logo_w = int(img.width * 0.2)
             ratio = base_logo_w / float(watermark_img.width)
             base_logo_h = int(float(watermark_img.height) * ratio)
@@ -254,6 +294,11 @@ def apply_watermark(image_bytes: bytes, text: str = "", logo_bytes: bytes = None
             pass
 
     watermarked = Image.alpha_composite(img, txt_layer)
+    
+    # پس‌زمینه سفید برای جلوگیری از سیاه شدن نواحی شفاف در JPG
+    final_bg = Image.new("RGB", watermarked.size, (255, 255, 255))
+    final_bg.paste(watermarked, mask=watermarked.split()[3])
+    
     out = io.BytesIO()
-    watermarked.convert("RGB").save(out, format="JPEG", quality=92)
+    final_bg.save(out, format="JPEG", quality=92)
     return out.getvalue()

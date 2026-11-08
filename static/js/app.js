@@ -52,27 +52,44 @@ document.addEventListener("DOMContentLoaded", function () {
             dropZone.addEventListener(eventName, () => dropZone.classList.remove("drag-over"), false);
         });
 
-        dropZone.addEventListener("drop", e => handleFiles(e.dataTransfer.files));
+        dropZone.addEventListener("drop", e => {
+            if (e.dataTransfer && e.dataTransfer.files) {
+                handleFiles(e.dataTransfer.files);
+            }
+        });
     }
 
     function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
 
     if (fileInput) {
-        fileInput.addEventListener("change", e => handleFiles(e.target.files));
+        fileInput.addEventListener("change", e => {
+            if (e.target.files) handleFiles(e.target.files);
+        });
+    }
+
+    function cleanupBlobs() {
+        processedFiles.forEach(item => {
+            if (item.originalUrl && item.originalUrl.startsWith("blob:")) {
+                URL.revokeObjectURL(item.originalUrl);
+            }
+        });
     }
 
     async function handleFiles(fileList) {
-        const allowedExts = [".jpg", ".jpeg", ".png", ".webp"];
+        // اضافه شدن .heic برای پشتیبانی از دوربین گوشی‌های آیفون
+        const allowedExts = [".jpg", ".jpeg", ".png", ".webp", ".heic"];
         const files = Array.from(fileList).filter(file => {
             const ext = "." + file.name.split(".").pop().toLowerCase();
             return file.type.startsWith("image/") || allowedExts.includes(ext);
         });
 
         if (files.length === 0) {
-            alert("لطفاً فایل تصویری معتبر (JPG, PNG, WebP) انتخاب کنید.");
+            alert("لطفاً فایل تصویری معتبر (JPG, PNG, WebP, HEIC) انتخاب کنید.");
             return;
         }
 
+        // پاکسازی کش حافظه قبلی مرورگر
+        cleanupBlobs();
         processedFiles = [];
         resultsContainer.innerHTML = "";
         if (batchActionBar) batchActionBar.style.display = "none";
@@ -107,7 +124,8 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!bytes || bytes <= 0) return "۰ بایت";
         const units = ["بایت", "کیلوبایت", "مگابایت", "گیگابایت"];
         const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-        return (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 2) + " " + units[i];
+        const val = (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 2);
+        return val + " " + units[i];
     }
 
     function displayResults(originalFiles, items) {
@@ -121,7 +139,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 errorDiv.innerHTML = `
                     <div class="result-details">
                         <div class="result-name">${escapeHTML(item.original_filename || "فایل")}</div>
-                        <div class="result-specs" style="color:var(--danger-color, #e53e3e)">خطا: ${escapeHTML(item.error)}</div>
+                        <div class="result-specs" style="color:var(--danger-color, #dc2626)">خطا: ${escapeHTML(item.error)}</div>
                     </div>
                 `;
                 resultsContainer.appendChild(errorDiv);
@@ -156,7 +174,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         <span>⬅</span>
                         <span class="font-bold text-teal">${formatBytes(meta.compressed_size)} <span>بعد</span></span>
                         <span class="badge-saving">${meta.saving_percentage}% کاهش</span>
-                        <span>${meta.new_dimensions ? meta.new_dimensions[0] + ' × ' + meta.new_dimensions[1] : ''} px</span>
+                        <span>${meta.new_dimensions ? meta.new_dimensions[0] + ' × ' + meta.new_dimensions[1] + ' px' : ''}</span>
                     </div>
                     <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${Math.min(Math.max(meta.saving_percentage, 0), 100)}%"></div></div>
                 </div>
@@ -216,6 +234,10 @@ document.addEventListener("DOMContentLoaded", function () {
     if (downloadAllBtn) {
         downloadAllBtn.addEventListener("click", function () {
             if (processedFiles.length === 0) return;
+            const originalBtnText = downloadAllBtn.textContent;
+            downloadAllBtn.textContent = "در حال آماده‌سازی زیپ...";
+            downloadAllBtn.disabled = true;
+
             const zipData = processedFiles.map(item => ({ name: item.name, data: item.data }));
             fetch("/api/download-zip", {
                 method: "POST",
@@ -234,17 +256,17 @@ document.addEventListener("DOMContentLoaded", function () {
                 link.click();
                 URL.revokeObjectURL(url);
             })
-            .catch(error => alert("خطا: " + error.message));
+            .catch(error => alert("خطا: " + error.message))
+            .finally(() => {
+                downloadAllBtn.textContent = originalBtnText;
+                downloadAllBtn.disabled = false;
+            });
         });
     }
 
     if (clearAllBtn) {
         clearAllBtn.addEventListener("click", function () {
-            processedFiles.forEach(item => {
-                if (item.originalUrl && item.originalUrl.startsWith("blob:")) {
-                    URL.revokeObjectURL(item.originalUrl);
-                }
-            });
+            cleanupBlobs();
             processedFiles = [];
             resultsContainer.innerHTML = "";
             if (batchActionBar) batchActionBar.style.display = "none";
