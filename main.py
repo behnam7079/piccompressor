@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 from optimizer import smart_compress, get_image_info, create_zip_archive, convert_images_to_pdf, apply_watermark
 from pillow_heif import register_heif_opener
 register_heif_opener()
+from blog_db import get_all_posts, get_post_by_slug, get_all_slugs_for_sitemap
 
 
 app = FastAPI(
@@ -76,12 +77,27 @@ Sitemap: {SITE_URL}/sitemap.xml
 
 @app.get("/sitemap.xml", response_class=Response)
 async def sitemap_xml():
+    blog_urls = ""
+    for post in get_all_slugs_for_sitemap():
+        blog_urls += f"""
+  <url>
+    <loc>{SITE_URL}/blog/{post['slug']}</loc>
+    <lastmod>{post['created_at']}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>"""
+
     xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>{SITE_URL}/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>{SITE_URL}/blog</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
   </url>
   <url>
     <loc>{SITE_URL}/privacy</loc>
@@ -92,9 +108,10 @@ async def sitemap_xml():
     <loc>{SITE_URL}/terms</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
-  </url>
+  </url>{blog_urls}
 </urlset>"""
     return Response(content=xml_content, media_type="application/xml")
+
 
 @app.post("/api/compress")
 async def compress_single_image(
@@ -241,7 +258,6 @@ async def images_to_pdf(files: List[UploadFile] = File(...)):
     image_bytes_list = []
     allowed_extensions = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 
-
     for file in files:
         ext = os.path.splitext(file.filename or "")[1].lower()
         if ext not in allowed_extensions:
@@ -259,6 +275,7 @@ async def images_to_pdf(files: List[UploadFile] = File(...)):
         media_type="application/pdf",
         headers={"Content-Disposition": 'attachment; filename="converted.pdf"'}
     )
+
 @app.post("/api/watermark")
 async def add_watermark(
     file: UploadFile = File(...),
@@ -297,6 +314,40 @@ async def add_watermark(
         })
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+# --- روت‌های بخش وبلاگ ---
+
+@app.get("/blog", response_class=HTMLResponse)
+async def blog_list(request: Request):
+    posts = get_all_posts(limit=30)
+    return templates.TemplateResponse(
+        request=request,
+        name="blog.html",
+        context={
+            "site_url": SITE_URL,
+            "posts": posts,
+            "page_title": "وبلاگ و مقالات آموزشی کاهش حجم عکس | پیک کامپرسور",
+            "meta_desc": "مجموعه مقالات تخصصی و کاربردی در زمینه کاهش حجم تصاویر، ترفندهای بهینه‌سازی فرمت‌های WebP و JPG، و افزایش سرعت سایت."
+        }
+    )
+
+@app.get("/blog/{slug}", response_class=HTMLResponse)
+async def blog_detail(request: Request, slug: str):
+    post = get_post_by_slug(slug)
+    if not post:
+        raise HTTPException(status_code=404, detail="مقاله مورد نظر یافت نشد.")
+    return templates.TemplateResponse(
+        request=request,
+        name="post.html",
+        context={
+            "site_url": SITE_URL,
+            "post": post,
+            "page_title": f"{post['title']} | پیک کامپرسور",
+            "meta_desc": post["meta_desc"],
+            "keywords": post.get("keywords", "")
+        }
+    )
 
 
 if __name__ == "__main__":
