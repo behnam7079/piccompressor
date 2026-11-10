@@ -3,14 +3,15 @@ import io
 import json
 import base64
 from typing import List, Optional
-from fastapi import FastAPI, Request, File, UploadFile, Form, HTTPException
-from fastapi.responses import HTMLResponse, Response, JSONResponse, StreamingResponse
+from fastapi import FastAPI, Request, File, UploadFile, Form, HTTPException, Depends, status
+from fastapi.responses import HTMLResponse, Response, JSONResponse, StreamingResponse, RedirectResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from optimizer import smart_compress, get_image_info, create_zip_archive, convert_images_to_pdf, apply_watermark
 from pillow_heif import register_heif_opener
 register_heif_opener()
-from blog_db import get_all_posts, get_post_by_slug, get_all_slugs_for_sitemap
+from blog_db import get_all_posts, get_post_by_slug, get_all_slugs_for_sitemap, insert_post
 
 
 app = FastAPI(
@@ -29,6 +30,20 @@ async def favicon():
     return Response(status_code=204)
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
+
+# تنظیمات امنیت پنل ادمین
+security = HTTPBasic()
+ADMIN_USER = "admin"
+ADMIN_PASS = "piccompressor2026"  # می‌توانی این رمز عبور را به دلخواه عوض کنی
+
+def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
+    if credentials.username != ADMIN_USER or credentials.password != ADMIN_PASS:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="نام کاربری یا رمز عبور اشتباه است",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -348,6 +363,82 @@ async def blog_detail(request: Request, slug: str):
             "keywords": post.get("keywords", "")
         }
     )
+
+
+# --- پنل مدیریت ادمین برای ارسال مقاله ---
+
+@app.get("/admin/new-post", response_class=HTMLResponse)
+def admin_new_post(request: Request, user: str = Depends(verify_admin)):
+    return """
+    <!DOCTYPE html>
+    <html lang="fa" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <title>افزودن مقاله جدید - پیک کامپرسور</title>
+        <style>
+            body { font-family: Tahoma, sans-serif; background: #0f172a; color: #fff; padding: 40px; }
+            .container { max-width: 700px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+            h2 { color: #0d9488; text-align: center; margin-bottom: 25px; }
+            label { display: block; margin-top: 15px; margin-bottom: 5px; font-weight: bold; }
+            input, textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; box-sizing: border-box; }
+            textarea { height: 180px; }
+            button { margin-top: 25px; background: #0d9488; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
+            button:hover { background: #0f766e; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>✍️ افزودن مقاله جدید به وبلاگ</h2>
+            <form method="POST" action="/admin/new-post">
+                <label>عنوان مقاله:</label>
+                <input type="text" name="title" required placeholder="مثلاً: راهنمای کاهش حجم عکس">
+
+                <label>آدرس یکتا (Slug انگلیسی):</label>
+                <input type="text" name="slug" required placeholder="مثلاً: compress-images-guide">
+
+                <label>توضیحات کوتاه (Meta Description):</label>
+                <input type="text" name="meta_desc" required placeholder="خلاصه‌ای برای سئو گوگل...">
+
+                <label>کلمات کلیدی (با کاما جدا کنید):</label>
+                <input type="text" name="keywords" placeholder="کاهش حجم, عکس, وب پی">
+
+                <label>زمان مطالعه (عدد به دقیقه):</label>
+                <input type="number" name="reading_time" value="3" required>
+
+                <label>متن مقاله (کد HTML مجاز است):</label>
+                <textarea name="content" required placeholder="<h2>عنوان تیتر</h2><p>متن مقاله...</p>"></textarea>
+
+                <button type="submit">انتشار مقاله 🚀</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.post("/admin/new-post")
+def admin_create_post(
+    title: str = Form(...),
+    slug: str = Form(...),
+    meta_desc: str = Form(...),
+    keywords: str = Form(""),
+    reading_time: int = Form(3),
+    content: str = Form(...),
+    user: str = Depends(verify_admin)
+):
+    success = insert_post(
+        slug=slug,
+        title=title,
+        meta_desc=meta_desc,
+        keywords=keywords,
+        content=content,
+        reading_time=reading_time,
+        status="published"
+    )
+    
+    if success:
+        return RedirectResponse(url="/blog", status_code=303)
+    else:
+        return {"error": "خطا در ثبت مقاله. احتمالاً این Slug قبلاً استفاده شده است."}
 
 
 if __name__ == "__main__":
