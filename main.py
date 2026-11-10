@@ -3,9 +3,8 @@ import io
 import json
 import base64
 from typing import List, Optional
-from fastapi import FastAPI, Request, File, UploadFile, Form, HTTPException, Depends, status
+from fastapi import FastAPI, Request, File, UploadFile, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, Response, JSONResponse, StreamingResponse, RedirectResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from optimizer import smart_compress, get_image_info, create_zip_archive, convert_images_to_pdf, apply_watermark
@@ -31,19 +30,9 @@ async def favicon():
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 
-# تنظیمات امنیت پنل ادمین
-security = HTTPBasic()
-ADMIN_USER = "admin"
-ADMIN_PASS = "piccompressor2026"  # می‌توانی این رمز عبور را به دلخواه عوض کنی
-
-def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
-    if credentials.username != ADMIN_USER or credentials.password != ADMIN_PASS:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="نام کاربری یا رمز عبور اشتباه است",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-    return credentials.username
+# رمز عبور پنل مدیریت ادمین
+ADMIN_PASS = "piccompressor2026"
+AUTH_TOKEN = "pic_admin_logged_in_secret_2026"
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -365,50 +354,111 @@ async def blog_detail(request: Request, slug: str):
     )
 
 
-# --- پنل مدیریت ادمین برای ارسال مقاله ---
+# --- پنل مدیریت ادمین (سیستم فرم لاگین امن) ---
 
-@app.get("/admin/new-post", response_class=HTMLResponse)
-def admin_new_post(request: Request, user: str = Depends(verify_admin)):
+@app.get("/admin/login", response_class=HTMLResponse)
+def admin_login_page(request: Request):
     return """
     <!DOCTYPE html>
     <html lang="fa" dir="rtl">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ورود به پنل ادمین - پیک کامپرسور</title>
+        <style>
+            body { font-family: Tahoma, sans-serif; background: #0f172a; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+            .box { background: #1e293b; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 340px; text-align: center; }
+            h2 { color: #0d9488; margin-top: 0; margin-bottom: 25px; font-size: 20px; }
+            input { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; box-sizing: border-box; font-size: 14px; text-align: center; }
+            input:focus { outline: none; border-color: #0d9488; }
+            button { background: #0d9488; color: white; border: none; padding: 12px; font-size: 15px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; transition: 0.2s; }
+            button:hover { background: #0f766e; }
+        </style>
+    </head>
+    <body>
+        <div class="box">
+            <h2>🔐 ورود به پنل ادمین</h2>
+            <form method="POST" action="/admin/login">
+                <input type="password" name="password" required placeholder="رمز عبور ادمین را وارد کنید...">
+                <button type="submit">ورود به پنل</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.post("/admin/login")
+def admin_login_submit(password: str = Form(...)):
+    if password != ADMIN_PASS:
+        return HTMLResponse("""
+        <!DOCTYPE html>
+        <html lang="fa" dir="rtl">
+        <head><meta charset="UTF-8"><title>خطا</title><style>body{background:#0f172a;color:#fff;text-align:center;padding-top:60px;font-family:Tahoma;}a{color:#0d9488;text-decoration:none;font-weight:bold;}</style></head>
+        <body>
+            <h3 style="color:#ef4444;">❌ رمز عبور اشتباه است!</h3>
+            <p><a href="/admin/login">بازگشت و تلاش مجدد</a></p>
+        </body>
+        </html>
+        """, status_code=400)
+    
+    response = RedirectResponse(url="/admin/new-post", status_code=303)
+    response.set_cookie(key="admin_auth", value=AUTH_TOKEN, httponly=True, max_age=86400 * 7)
+    return response
+
+@app.get("/admin/new-post", response_class=HTMLResponse)
+def admin_new_post(request: Request):
+    auth_cookie = request.cookies.get("admin_auth")
+    if auth_cookie != AUTH_TOKEN:
+        return RedirectResponse(url="/admin/login", status_code=303)
+        
+    return """
+    <!DOCTYPE html>
+    <html lang="fa" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>افزودن مقاله جدید - پیک کامپرسور</title>
         <style>
-            body { font-family: Tahoma, sans-serif; background: #0f172a; color: #fff; padding: 40px; }
-            .container { max-width: 700px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-            h2 { color: #0d9488; text-align: center; margin-bottom: 25px; }
-            label { display: block; margin-top: 15px; margin-bottom: 5px; font-weight: bold; }
-            input, textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; box-sizing: border-box; }
-            textarea { height: 180px; }
-            button { margin-top: 25px; background: #0d9488; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
+            body { font-family: Tahoma, sans-serif; background: #0f172a; color: #fff; padding: 30px 15px; margin: 0; }
+            .container { max-width: 720px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+            .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+            h2 { color: #0d9488; margin: 0; }
+            .logout { color: #ef4444; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #ef4444; border-radius: 6px; }
+            .logout:hover { background: #ef4444; color: #fff; }
+            label { display: block; margin-top: 15px; margin-bottom: 6px; font-weight: bold; font-size: 14px; }
+            input, textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; box-sizing: border-box; font-family: Tahoma, sans-serif; }
+            input:focus, textarea:focus { outline: none; border-color: #0d9488; }
+            textarea { height: 200px; resize: vertical; line-height: 1.6; }
+            button { margin-top: 25px; background: #0d9488; color: white; border: none; padding: 13px; font-size: 16px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
             button:hover { background: #0f766e; }
         </style>
     </head>
     <body>
         <div class="container">
-            <h2>✍️ افزودن مقاله جدید به وبلاگ</h2>
+            <div class="top-bar">
+                <h2>✍️ افزودن مقاله جدید به وبلاگ</h2>
+                <a href="/admin/logout" class="logout">خروج 🚪</a>
+            </div>
             <form method="POST" action="/admin/new-post">
                 <label>عنوان مقاله:</label>
-                <input type="text" name="title" required placeholder="مثلاً: راهنمای کاهش حجم عکس">
+                <input type="text" name="title" required placeholder="مثلاً: راهنمای کامل کاهش حجم عکس در وردپرس">
 
                 <label>آدرس یکتا (Slug انگلیسی):</label>
-                <input type="text" name="slug" required placeholder="مثلاً: compress-images-guide">
+                <input type="text" name="slug" required placeholder="مثلاً: compress-images-wordpress">
 
-                <label>توضیحات کوتاه (Meta Description):</label>
-                <input type="text" name="meta_desc" required placeholder="خلاصه‌ای برای سئو گوگل...">
+                <label>توضیحات کوتاه سئو (Meta Description):</label>
+                <input type="text" name="meta_desc" required placeholder="یک یا دو جمله برای پیش‌نمایش در نتایج گوگل...">
 
                 <label>کلمات کلیدی (با کاما جدا کنید):</label>
-                <input type="text" name="keywords" placeholder="کاهش حجم, عکس, وب پی">
+                <input type="text" name="keywords" placeholder="کاهش حجم عکس, آموزش وردپرس, وب پی">
 
-                <label>زمان مطالعه (عدد به دقیقه):</label>
+                <label>زمان تقریبی مطالعه (به دقیقه):</label>
                 <input type="number" name="reading_time" value="3" required>
 
-                <label>متن مقاله (کد HTML مجاز است):</label>
-                <textarea name="content" required placeholder="<h2>عنوان تیتر</h2><p>متن مقاله...</p>"></textarea>
+                <label>متن مقاله (تگ‌های HTML مانند h2، p، ul مجاز است):</label>
+                <textarea name="content" required placeholder="<h2>تیتر اول</h2><p>متن توضیحات...</p>"></textarea>
 
-                <button type="submit">انتشار مقاله 🚀</button>
+                <button type="submit">انتشار مقاله در وبلاگ 🚀</button>
             </form>
         </div>
     </body>
@@ -417,20 +467,24 @@ def admin_new_post(request: Request, user: str = Depends(verify_admin)):
 
 @app.post("/admin/new-post")
 def admin_create_post(
+    request: Request,
     title: str = Form(...),
     slug: str = Form(...),
     meta_desc: str = Form(...),
     keywords: str = Form(""),
     reading_time: int = Form(3),
-    content: str = Form(...),
-    user: str = Depends(verify_admin)
+    content: str = Form(...)
 ):
+    auth_cookie = request.cookies.get("admin_auth")
+    if auth_cookie != AUTH_TOKEN:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
     success = insert_post(
-        slug=slug,
-        title=title,
-        meta_desc=meta_desc,
-        keywords=keywords,
-        content=content,
+        slug=slug.strip(),
+        title=title.strip(),
+        meta_desc=meta_desc.strip(),
+        keywords=keywords.strip(),
+        content=content.strip(),
         reading_time=reading_time,
         status="published"
     )
@@ -438,7 +492,22 @@ def admin_create_post(
     if success:
         return RedirectResponse(url="/blog", status_code=303)
     else:
-        return {"error": "خطا در ثبت مقاله. احتمالاً این Slug قبلاً استفاده شده است."}
+        return HTMLResponse("""
+        <!DOCTYPE html>
+        <html lang="fa" dir="rtl">
+        <head><meta charset="UTF-8"><title>خطا</title><style>body{background:#0f172a;color:#fff;text-align:center;padding-top:60px;font-family:Tahoma;}a{color:#0d9488;text-decoration:none;font-weight:bold;}</style></head>
+        <body>
+            <h3 style="color:#ef4444;">❌ خطا در ثبت مقاله: این Slug قبلاً ثبت شده است!</h3>
+            <p><a href="/admin/new-post">بازگشت و تغییر Slug</a></p>
+        </body>
+        </html>
+        """, status_code=400)
+
+@app.get("/admin/logout")
+def admin_logout():
+    response = RedirectResponse(url="/admin/login", status_code=303)
+    response.delete_cookie("admin_auth")
+    return response
 
 
 if __name__ == "__main__":
