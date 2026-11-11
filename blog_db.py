@@ -71,5 +71,22 @@ def insert_post(slug: str, title: str, meta_desc: str, keywords: str, content: s
     finally:
         conn.close()
 
+# --- توابع جدید مدیریت و حذف ادمین ---
+
+def get_all_posts_admin():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, slug, title, created_at FROM posts ORDER BY id DESC")
+    posts = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return posts
+
+def delete_post_by_id(post_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+    conn.commit()
+    conn.close()
+
 # ساخت جدول در اولین اجرا
 init_db()

@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from optimizer import smart_compress, get_image_info, create_zip_archive, convert_images_to_pdf, apply_watermark
 from pillow_heif import register_heif_opener
 register_heif_opener()
-from blog_db import get_all_posts, get_post_by_slug, get_all_slugs_for_sitemap, insert_post
+from blog_db import get_all_posts, get_post_by_slug, get_all_slugs_for_sitemap, insert_post, get_all_posts_admin, delete_post_by_id
 
 
 app = FastAPI(
@@ -32,7 +32,7 @@ ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 
 # رمز عبور پنل مدیریت ادمین
 ADMIN_PASS = "piccompressor2026"
-AUTH_TOKEN = "pic_admin_logged_in_secret_2026"
+AUTH_TOKEN = "GAPGPTMASKTOKEN23ybt7hhez7X0X"
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -401,9 +401,90 @@ def admin_login_submit(password: str = Form(...)):
         </html>
         """, status_code=400)
     
-    response = RedirectResponse(url="/admin/new-post", status_code=303)
+    # پس از لاگین موفق، هدایت به صفحه لیست مقالات ادمین
+    response = RedirectResponse(url="/admin/posts", status_code=303)
     response.set_cookie(key="admin_auth", value=AUTH_TOKEN, httponly=True, max_age=86400 * 7)
     return response
+
+
+# --- صفحه لیست مقالات و مدیریت (حذف) ---
+
+@app.get("/admin/posts", response_class=HTMLResponse)
+def admin_posts_list(request: Request):
+    auth_cookie = request.cookies.get("admin_auth")
+    if auth_cookie != AUTH_TOKEN:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    
+    posts = get_all_posts_admin()
+    posts_html = ""
+    for p in posts:
+        posts_html += f"""
+        <tr style="border-bottom: 1px solid #334155;">
+            <td style="padding: 12px;">{p['title']}</td>
+            <td style="padding: 12px; color: #94a3b8; font-size: 13px;">{p['created_at']}</td>
+            <td style="padding: 12px; text-align: left;">
+                <a href="/admin/delete/{p['id']}" onclick="return confirm('آیا از حذف این مقاله مطمئن هستید؟');" style="background: #ef4444; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px;">حذف 🗑️</a>
+            </td>
+        </tr>
+        """
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="fa" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>مدیریت مقالات - پیک کامپرسور</title>
+        <style>
+            body {{ font-family: Tahoma, sans-serif; background: #0f172a; color: #fff; padding: 30px 15px; margin: 0; }}
+            .container {{ max-width: 800px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }}
+            .top-bar {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }}
+            h2 {{ color: #0d9488; margin: 0; }}
+            .btn {{ background: #0d9488; color: white; text-decoration: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 14px; }}
+            .btn:hover {{ background: #0f766e; }}
+            .logout {{ color: #ef4444; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #ef4444; border-radius: 6px; margin-right: 10px; }}
+            .logout:hover {{ background: #ef4444; color: #fff; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+            th {{ text-align: right; padding: 12px; background: #0f172a; color: #0d9488; font-size: 14px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="top-bar">
+                <h2>📚 مدیریت مقالات وبلاگ</h2>
+                <div>
+                    <a href="/admin/new-post" class="btn">➕ افزودن مقاله جدید</a>
+                    <a href="/admin/logout" class="logout">خروج 🚪</a>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>عنوان مقاله</th>
+                        <th>تاریخ ثبت</th>
+                        <th style="text-align: left;">عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {posts_html if posts_html else '<tr><td colspan="3" style="text-align:center; padding:20px; color:#94a3b8;">هنوز مقاله‌ای ثبت نشده است.</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.get("/admin/delete/{post_id}")
+def admin_delete_post(request: Request, post_id: int):
+    auth_cookie = request.cookies.get("admin_auth")
+    if auth_cookie != AUTH_TOKEN:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    
+    delete_post_by_id(post_id)
+    return RedirectResponse(url="/admin/posts", status_code=303)
+
+
+# --- صفحه افزودن مقاله جدید ---
 
 @app.get("/admin/new-post", response_class=HTMLResponse)
 def admin_new_post(request: Request):
@@ -423,6 +504,8 @@ def admin_new_post(request: Request):
             .container { max-width: 720px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
             .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
             h2 { color: #0d9488; margin: 0; }
+            .back-btn { background: #334155; color: #fff; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 14px; margin-left: 10px; }
+            .back-btn:hover { background: #475569; }
             .logout { color: #ef4444; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #ef4444; border-radius: 6px; }
             .logout:hover { background: #ef4444; color: #fff; }
             label { display: block; margin-top: 15px; margin-bottom: 6px; font-weight: bold; font-size: 14px; }
@@ -437,7 +520,10 @@ def admin_new_post(request: Request):
         <div class="container">
             <div class="top-bar">
                 <h2>✍️ افزودن مقاله جدید به وبلاگ</h2>
-                <a href="/admin/logout" class="logout">خروج 🚪</a>
+                <div>
+                    <a href="/admin/posts" class="back-btn">⬅️ بازگشت به لیست</a>
+                    <a href="/admin/logout" class="logout">خروج 🚪</a>
+                </div>
             </div>
             <form method="POST" action="/admin/new-post">
                 <label>عنوان مقاله:</label>
@@ -469,7 +555,7 @@ def admin_new_post(request: Request):
 def admin_create_post(
     request: Request,
     title: str = Form(...),
-    slug: str = Form(...),
+    slug: str,
     meta_desc: str = Form(...),
     keywords: str = Form(""),
     reading_time: int = Form(3),
@@ -490,7 +576,7 @@ def admin_create_post(
     )
     
     if success:
-        return RedirectResponse(url="/blog", status_code=303)
+        return RedirectResponse(url="/admin/posts", status_code=303)
     else:
         return HTMLResponse("""
         <!DOCTYPE html>
