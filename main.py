@@ -32,7 +32,7 @@ ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 
 # رمز عبور پنل مدیریت ادمین
 ADMIN_PASS = "piccompressor2026"
-AUTH_TOKEN = "GAPGPTMASKTOKEN23ybt7hhez7X0X"
+AUTH_TOKEN = "GAPGPTMASKTOKEN7f5muokuul6X0X"
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -555,7 +555,7 @@ def admin_new_post(request: Request):
 def admin_create_post(
     request: Request,
     title: str = Form(...),
-    slug: str,
+    slug: str = Form(...),
     meta_desc: str = Form(...),
     keywords: str = Form(""),
     reading_time: int = Form(3),
