@@ -68,6 +68,222 @@
     </a>
 </aside>
 
+<!-- تبلیغ شناور سایت فال و استخاره -->
+<aside class="fortune-floating-ad" aria-label="تبلیغ سایت فال و استخاره">
+    <button type="button"
+            class="fortune-ad-close"
+            aria-label="بستن تبلیغ"
+            title="بستن تبلیغ"
+            onclick="this.closest('.fortune-floating-ad').remove()">
+        ×
+    </button>
+
+    <a href="https://faloestekhare.ir"
+       target="_blank"
+       rel="noopener noreferrer"
+       class="fortune-ad-link">
+
+        <div class="fortune-ad-logo-wrap">
+            <img src="/static/images/site-logo.webp"
+                 alt="لوگوی سایت فال و استخاره"
+                 class="fortune-ad-logo">
+        </div>
+
+        <div class="fortune-ad-content">
+            <span class="fortune-ad-label">یک انتخاب برای دل شما</span>
+            <strong class="fortune-ad-title">فال و استخاره یزدان</strong>
+            <span class="fortune-ad-description">فال حافظ، استخاره با قرآن و نیت قلبی</span>
+            <span class="fortune-ad-button">ورود به سایت </span>
+        </div>
+    </a>
+</aside>
+
+<style>
+    .fortune-floating-ad {
+        position: fixed;
+        right: 22px;
+        bottom: 22px;
+        z-index: 9998;
+        width: min(350px, calc(100vw - 32px));
+        direction: rtl;
+        font-family: inherit;
+        animation: fortuneAdSlideIn 0.7s ease-out both;
+    }
+
+    .fortune-ad-link {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        min-height: 112px;
+        padding: 15px 16px 15px 14px;
+        overflow: hidden;
+        color: #fff0f8;
+        text-decoration: none;
+        background: linear-gradient(135deg, #190d20 0%, #211026 55%, #30102e 100%);
+        border: 1px solid #782765;
+        border-radius: 18px;
+        box-shadow: 0 10px 30px rgba(12, 3, 16, 0.5),
+                    0 0 18px rgba(203, 39, 133, 0.14);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .fortune-ad-link::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: -70px;
+        width: 45px;
+        height: 100%;
+        background: rgba(255, 75, 163, 0.18);
+        transform: skewX(-18deg);
+        animation: fortuneAdShine 4.5s ease-in-out infinite;
+    }
+
+    .fortune-ad-link:hover {
+        transform: translateY(-4px);
+        border-color: #d23291;
+        box-shadow: 0 14px 34px rgba(12, 3, 16, 0.58),
+                    0 0 22px rgba(226, 43, 143, 0.24);
+    }
+
+    .fortune-ad-logo-wrap {
+        position: relative;
+        flex: 0 0 72px;
+        width: 72px;
+        height: 72px;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #211026;
+        border: 2px solid #c83391;
+        border-radius: 50%;
+        box-shadow: 0 0 14px rgba(220, 45, 143, 0.2);
+    }
+
+    .fortune-ad-logo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .fortune-ad-content {
+        position: relative;
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+    }
+
+    .fortune-ad-label {
+        color: #f34b9b;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .fortune-ad-title {
+        color: #fff0f8;
+        font-size: 18px;
+        line-height: 1.4;
+        white-space: nowrap;
+    }
+
+    .fortune-ad-description {
+        color: #c9a6c9;
+        font-size: 11px;
+        line-height: 1.7;
+        white-space: nowrap;
+    }
+
+    .fortune-ad-button {
+        display: inline-flex;
+        align-items: center;
+        margin-top: 5px;
+        padding: 5px 11px;
+        color: #fff;
+        background: linear-gradient(135deg, #bd26d9, #e42d8e);
+        border-radius: 7px;
+        font-size: 12px;
+        font-weight: 700;
+        box-shadow: 0 3px 12px rgba(208, 37, 161, 0.25);
+    }
+
+    .fortune-ad-close {
+        position: absolute;
+        top: -9px;
+        left: -8px;
+        z-index: 2;
+        width: 25px;
+        height: 25px;
+        padding: 0;
+        color: #fff;
+        background: #a92573;
+        border: 2px solid #241026;
+        border-radius: 50%;
+        cursor: pointer;
+        font-family: Arial, sans-serif;
+        font-size: 19px;
+        line-height: 19px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+
+    .fortune-ad-close:hover {
+        background: #e02e83;
+    }
+
+    @keyframes fortuneAdSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(25px) scale(0.94);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @keyframes fortuneAdShine {
+        0%, 55% {
+            right: -70px;
+        }
+        75%, 100% {
+            right: 430px;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .fortune-floating-ad {
+            right: 12px;
+            bottom: 12px;
+            width: calc(100vw - 24px);
+        }
+
+        .fortune-ad-link {
+            min-height: 98px;
+            padding: 12px;
+            gap: 10px;
+            border-radius: 15px;
+        }
+
+        .fortune-ad-logo-wrap {
+            flex-basis: 62px;
+            width: 62px;
+            height: 62px;
+        }
+
+        .fortune-ad-title {
+            font-size: 16px;
+        }
+
+        .fortune-ad-description {
+            font-size: 10px;
+        }
+    }
+</style>
+
+
+
 <!-- بنر تبلیغاتی اپلیکیشن فاکتوریت (وسط‌چین و با عرض محدود) -->
 <div class="container" style="margin-top: 25px;">
     <div class="promo-banner-card">
